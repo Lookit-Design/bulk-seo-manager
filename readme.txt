@@ -4,7 +4,7 @@ Tags: yoast, seo, keyphrase, meta description, bulk edit
 Requires at least: 5.9
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 3.29.3
+Stable tag: 3.29.4
 License: GPL-2.0+
 Author: Lookit Design
 Author URI: https://lookitai.com
@@ -37,6 +37,9 @@ This plugin can also connect to a Lookit platform webhook (self-hosted n8n) that
 * [Vadim] add auth on the webhook and finalize vendor ToS/Privacy links before WP.org submission.
 
 == Changelog ==
+
+= 3.29.4 =
+* Require permission to edit each post before filling or locking SEO fields, so authors cannot read or change content they do not own.
 
 = 3.29.3 =
 * Auto SEO Manager: the save now reads the option back from the database (bypassing the object cache) and returns it, and the browser diffs it against what it sent. Any field that doesn't persist is named on screen and logged to the console instead of failing silently.
