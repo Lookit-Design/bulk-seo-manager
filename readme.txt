@@ -33,8 +33,7 @@ This plugin can also connect to a Lookit platform webhook (self-hosted n8n) that
 
 * What is sent: the page title, a short content excerpt, the primary category/term, and the post-type label.
 * When: only on an explicit AI Fill action in the Bulk Editor.
-* Endpoint is configured by the site owner; no AWS keys are stored in WordPress.
-* [Vadim] add auth on the webhook and finalize vendor ToS/Privacy links before WP.org submission.
+* The endpoint and required bearer token are configured by the site owner; no AWS keys are stored in WordPress.
 
 == Changelog ==
 
