@@ -6,6 +6,8 @@
 [![Plugin Check](https://github.com/Lookit-Design/bulk-seo-manager/actions/workflows/plugin-check.yml/badge.svg)](../../actions/workflows/plugin-check.yml)
 [![Tests](https://github.com/Lookit-Design/bulk-seo-manager/actions/workflows/test.yml/badge.svg)](../../actions/workflows/test.yml)
 
+This repository is no longer maintained. Use [Lookit SEO Copilot](https://github.com/Lookit-Design/seo-copilot) instead.
+
 Bulk-edit Yoast focus keyphrases and meta descriptions, and auto-fill those fields on publish, from one WordPress admin screen.
 
 Supports `WordPress >= 5.9` on `PHP >= 7.4`.
@@ -29,11 +31,9 @@ Supports `WordPress >= 5.9` on `PHP >= 7.4`.
 
 ### Installation
 
-This plugin is installed from GitHub, not from WordPress.org.
+This plugin is no longer maintained. Install [Lookit SEO Copilot](https://github.com/Lookit-Design/seo-copilot) instead.
 
-1. Clone or copy this repository into `/wp-content/plugins/lookit-bulk-seo-manager`.
-2. Activate **Lookit Bulk SEO Manager** through the **Plugins** menu in WordPress.
-3. Yoast SEO should be active; the plugin writes Yoast meta fields.
+Existing sites that already use the `bulk-keyphrase-manager` plugin folder should update from that repository so the install remains in place.
 
 ### Configuration
 
@@ -108,7 +108,7 @@ A scheduled [Version Monitor](../../actions/workflows/version-monitor.yml) workf
 
 ## Contributing
 
-Bug reports and pull requests are welcome on [GitHub](../../issues).
+This repository is no longer maintained. Open issues and pull requests against [Lookit SEO Copilot](https://github.com/Lookit-Design/seo-copilot).
 
 ## License
 
