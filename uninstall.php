@@ -15,10 +15,16 @@ $asy_uninstall_options = array(
 	'bsm_keyphrase_templates',
 	'bsm_title_templates',
 	'bsm_ai_webhook_url',
+	'bsm_ai_webhook_token',
 );
 
 if ( is_multisite() ) {
-	foreach ( get_sites( array( 'fields' => 'ids' ) ) as $asy_uninstall_site_id ) {
+	foreach ( get_sites(
+		array(
+			'fields' => 'ids',
+			'number' => 0,
+		)
+	) as $asy_uninstall_site_id ) {
 		switch_to_blog( $asy_uninstall_site_id );
 		foreach ( $asy_uninstall_options as $asy_uninstall_option ) {
 			delete_option( $asy_uninstall_option );

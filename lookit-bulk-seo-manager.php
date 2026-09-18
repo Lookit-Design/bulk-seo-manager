@@ -26,6 +26,7 @@ define( 'BSM_DESC_HI', 141 );
 
 add_action( 'admin_menu', 'bsm_register_menu' );
 add_action( 'admin_init', 'bsm_handle_save' );
+add_action( 'admin_init', 'bsm_disable_secret_autoload' );
 add_action( 'admin_enqueue_scripts', 'bsm_enqueue_assets' );
 add_action( 'wp_ajax_bsm_save_single', 'bsm_ajax_save_single' );
 add_action( 'wp_ajax_bsm_save_all', 'bsm_ajax_save_all' );
@@ -658,8 +659,9 @@ function bsm_render_settings() {
 		</p>
 
 		<?php
-		$bsm_ai_webhook = get_option( 'bsm_ai_webhook_url', '' );
-		$bsm_kp_count   = max( 1, min( 5, (int) get_option( 'asy_kp_count', 3 ) ) );
+		$bsm_ai_webhook   = get_option( 'bsm_ai_webhook_url', '' );
+		$bsm_ai_has_token = '' !== trim( (string) get_option( 'bsm_ai_webhook_token', '' ) );
+		$bsm_kp_count     = max( 1, min( 5, (int) get_option( 'asy_kp_count', 3 ) ) );
 
 		// Sample post for the preview rail — per user, so one admin's choice
 		// doesn't change what another admin sees.
@@ -733,8 +735,12 @@ function bsm_render_settings() {
 							<input type="url" id="bsm-ai-webhook" value="<?php echo esc_url( $bsm_ai_webhook ); ?>"
 									placeholder="https://n8n.lookitai.com/webhook/lookit-seo-manager"
 									class="bsm-set-mono">
-							<span class="bsm-set-pill"><span class="bsm-set-dot"></span>No API key required</span>
+							<span class="bsm-set-pill"><span class="bsm-set-dot"></span>Bearer protected</span>
 						</div>
+						<label class="bsm-set-label" for="bsm-ai-token">Bearer token</label>
+						<input type="password" id="bsm-ai-token" value="" autocomplete="new-password"
+								placeholder="<?php echo $bsm_ai_has_token ? esc_attr__( 'Saved; leave blank to keep', 'lookit-bulk-seo-manager' ) : esc_attr__( 'Required', 'lookit-bulk-seo-manager' ); ?>"
+								class="bsm-set-mono">
 						<p class="bsm-set-hint">
 							Used by the <strong>AI — Nova Lite</strong> fill options in the Bulk Editor, the
 							<strong>Use AI</strong> button under Test &amp; reprocess, and any AI option in Auto SEO Manager.
@@ -1036,11 +1042,13 @@ function bsm_render_settings() {
 			if (!saveBtn) return;
 			saveBtn.addEventListener('click', function(){
 				var input = document.getElementById('bsm-ai-webhook');
+				var token = document.getElementById('bsm-ai-token');
 				var st    = document.getElementById('bsm-ai-webhook-status');
 				var fd = new FormData();
 				fd.append('action','bsm_save_ai_webhook');
 				fd.append('nonce', NONCE);
 				fd.append('url', input ? input.value : '');
+				fd.append('token', token ? token.value : '');
 				if (st){ st.style.display='inline'; st.style.color='#1a8fd1'; st.textContent='Saving…'; }
 				fetch(AJAXURL,{method:'POST',body:fd,credentials:'same-origin'})
 					.then(function(r){ return r.json(); })
@@ -1473,18 +1481,44 @@ function bsm_ajax_fill_keyphrases() {
 }
 
 /**
- * Save the AI platform webhook URL (option: bsm_ai_webhook_url).
- * This is a platform endpoint, NOT a credential — the plugin never holds
- * AWS keys. Auth/quota/metering live on the platform (n8n → Bedrock).
+ * Save the AI platform webhook URL and bearer token.
  */
 function bsm_ajax_save_ai_webhook() {
 	check_ajax_referer( BSM_AJAX_NONCE, 'nonce' );
 	if ( ! current_user_can( 'manage_options' ) ) {
 		wp_send_json_error( 'Permission denied.' );
 	}
-	$url = isset( $_POST['url'] ) ? esc_url_raw( wp_unslash( $_POST['url'] ) ) : '';
-	update_option( 'bsm_ai_webhook_url', $url );
+	$url   = isset( $_POST['url'] ) ? wp_unslash( $_POST['url'] ) : '';
+	$token = isset( $_POST['token'] ) ? wp_unslash( $_POST['token'] ) : '';
+	$url   = bsm_store_ai_settings( $url, $token );
 	wp_send_json_success( array( 'url' => $url ) );
+}
+
+function bsm_store_ai_settings( $url, $token ) {
+	$url = esc_url_raw( $url, array( 'http', 'https' ) );
+	update_option( 'bsm_ai_webhook_url', $url );
+	$token = sanitize_text_field( $token );
+	if ( '' !== $token ) {
+		delete_option( 'bsm_ai_webhook_token' );
+		add_option( 'bsm_ai_webhook_token', $token, '', false );
+	}
+	return $url;
+}
+
+function bsm_disable_secret_autoload() {
+	$token = get_option( 'bsm_ai_webhook_token', null );
+	if ( null !== $token && isset( wp_load_alloptions()['bsm_ai_webhook_token'] ) ) {
+		delete_option( 'bsm_ai_webhook_token' );
+		add_option( 'bsm_ai_webhook_token', $token, '', false );
+	}
+}
+
+function bsm_ai_webhook_headers() {
+	$token = trim( (string) get_option( 'bsm_ai_webhook_token', '' ) );
+	return array(
+		'Content-Type'  => 'application/json',
+		'Authorization' => 'Bearer ' . $token,
+	);
 }
 
 /**
@@ -1509,9 +1543,6 @@ function bsm_ajax_save_kp_count() {
  * Request:  ids (csv), task ('keyphrase'|'metadesc'), count, kw[<id>] (optional)
  * Response: { results: { <id>: {primary,related}|{text} }, errors: {<id>:msg} }
  *
- * NOTE for Vadim (pre-production): the n8n webhook currently has no auth —
- * add a shared secret / Header Auth before exposing this for real. Also add
- * the == External Services == disclosure in readme.txt for this endpoint.
  */
 function bsm_ajax_ai_fill() {
 	check_ajax_referer( BSM_AJAX_NONCE, 'nonce' );
@@ -1522,6 +1553,9 @@ function bsm_ajax_ai_fill() {
 	$webhook = trim( (string) get_option( 'bsm_ai_webhook_url', '' ) );
 	if ( empty( $webhook ) ) {
 		wp_send_json_error( 'AI engine not configured — set the webhook URL in the AI engine box above.' );
+	}
+	if ( '' === trim( (string) get_option( 'bsm_ai_webhook_token', '' ) ) ) {
+		wp_send_json_error( 'AI engine not configured — set the bearer token in Settings.' );
 	}
 
 	$task = sanitize_key( wp_unslash( $_POST['task'] ?? 'keyphrase' ) );
@@ -1600,7 +1634,7 @@ function bsm_ajax_ai_fill() {
 			$webhook,
 			array(
 				'timeout' => 45,
-				'headers' => array( 'Content-Type' => 'application/json' ),
+				'headers' => bsm_ai_webhook_headers(),
 				'body'    => wp_json_encode( $payload ),
 			)
 		);
@@ -1661,6 +1695,9 @@ function bsm_ai_call_webhook( $task, WP_Post $post, $count = 3, $keyphrase = '' 
 	if ( empty( $webhook ) ) {
 		return new WP_Error( 'no_webhook', 'AI engine not configured — set the webhook URL in Settings.' );
 	}
+	if ( '' === trim( (string) get_option( 'bsm_ai_webhook_token', '' ) ) ) {
+		return new WP_Error( 'no_webhook_token', 'AI engine not configured — set the bearer token in Settings.' );
+	}
 
 	$type_obj   = get_post_type_object( $post->post_type );
 	$type_label = $type_obj ? $type_obj->label : $post->post_type;
@@ -1701,7 +1738,7 @@ function bsm_ai_call_webhook( $task, WP_Post $post, $count = 3, $keyphrase = '' 
 		$webhook,
 		array(
 			'timeout' => 45,
-			'headers' => array( 'Content-Type' => 'application/json' ),
+			'headers' => bsm_ai_webhook_headers(),
 			'body'    => wp_json_encode( $payload ),
 		)
 	);
